@@ -125,15 +125,19 @@ function sanitizeOnPaste(e) {
   if (!editor.textContent.trim()) placeCaretAtStart(editor);
 
   if (html && html.trim()) {
+    console.log('Pasting HTML from clipboard:', html);
     const clean = cleanHTML(html);
+    console.log('Cleaned HTML:', clean);
     document.execCommand('insertHTML', false, clean);
+    setStatus('Вставлено с сохранением форматирования');
   } else if (text && text.trim()) {
     document.execCommand('insertText', false, text);
+    setStatus('Вставлен простой текст');
   }
 }
 
 function cleanHTML(html) {
-  const allowedInline = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'S', 'DEL', 'STRIKE', 'CODE', 'TT', 'SPAN', 'A']);
+  const allowedInline = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'S', 'DEL', 'STRIKE', 'CODE', 'TT', 'SPAN', 'A', 'PRE']);
   const allowedBlock = new Set(['DIV', 'P', 'BR', 'BLOCKQUOTE']);
   const template = document.createElement('template');
   template.innerHTML = html;
@@ -143,17 +147,71 @@ function cleanHTML(html) {
   while (walker.nextNode()) {
     const el = walker.currentNode;
     const tag = el.tagName;
+    
+    // Handle Telegram-specific classes and styles
+    if (tag === 'SPAN') {
+      const className = el.className;
+      const style = el.style.cssText;
+      
+      // Convert Telegram spoiler classes
+      if (className.includes('spoiler') || className.includes('tg-spoiler') || style.includes('spoiler')) {
+        el.className = 'spoiler';
+        el.removeAttribute('style');
+        continue;
+      }
+      
+      // Convert style-based formatting to proper tags
+      if (style.includes('font-weight: bold') || style.includes('font-weight: 700')) {
+        const b = document.createElement('b');
+        b.innerHTML = el.innerHTML;
+        el.replaceWith(b);
+        continue;
+      }
+      
+      if (style.includes('font-style: italic')) {
+        const i = document.createElement('i');
+        i.innerHTML = el.innerHTML;
+        el.replaceWith(i);
+        continue;
+      }
+      
+      if (style.includes('text-decoration: underline')) {
+        const u = document.createElement('u');
+        u.innerHTML = el.innerHTML;
+        el.replaceWith(u);
+        continue;
+      }
+      
+      if (style.includes('text-decoration: line-through')) {
+        const s = document.createElement('s');
+        s.innerHTML = el.innerHTML;
+        el.replaceWith(s);
+        continue;
+      }
+    }
+    
+    // Convert PRE to CODE for inline code
+    if (tag === 'PRE') {
+      const code = document.createElement('code');
+      code.textContent = el.textContent;
+      el.replaceWith(code);
+      continue;
+    }
+    
     if (!allowedInline.has(tag) && !allowedBlock.has(tag)) {
       toRemove.push(el);
       continue;
     }
+    
+    // Clean attributes
     [...el.attributes].forEach(attr => {
-      if (!(el.tagName === 'A' && attr.name === 'href')) el.removeAttribute(attr.name);
+      if (!(el.tagName === 'A' && attr.name === 'href') && 
+          !(el.tagName === 'SPAN' && attr.name === 'class' && el.className === 'spoiler')) {
+        el.removeAttribute(attr.name);
+      }
     });
-    if (el.tagName === 'SPAN' && el.className !== 'spoiler') {
-      el.removeAttribute('class');
-    }
   }
+  
   toRemove.forEach(el => el.replaceWith(...el.childNodes));
   return template.innerHTML;
 }
