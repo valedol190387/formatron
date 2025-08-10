@@ -648,32 +648,73 @@ function initializeTheme() {
   });
 }
 
-// Telegram Mini App integration
+// Telegram Mini App integration with sticky app fix
 function initializeTelegramWebApp() {
-  // New SDK initialization with mobile fix
+  // Apply sticky app fix immediately for all mobile platforms
+  applyStickyAppFix();
+  
+  // Initialize SDK
   if (typeof window.telegramApps !== 'undefined' && window.telegramApps.sdk) {
     try {
-      const { retrieveLaunchParams, postEvent } = window.telegramApps.sdk;
-      const lp = retrieveLaunchParams();
-
-      // Some versions of Telegram don't need the mobile fix
-      if (!['macos', 'tdesktop', 'weba', 'web', 'webk'].includes(lp.platform)) {
-        // Apply mobile fix for mobile platforms
-        document.body.classList.add('mobile-body');
-        document.getElementById('wrap').classList.add('mobile-wrap');
-        document.getElementById('content').classList.add('mobile-content');
-      }
-
+      const { postEvent } = window.telegramApps.sdk;
+      
       // Expand the application
       postEvent('web_app_expand');
       
-      console.log('Telegram Web App initialized with mobile fix for platform:', lp.platform);
+      console.log('Telegram Web App initialized with new SDK');
     } catch (error) {
       console.log('Failed to initialize new SDK, falling back to old SDK');
       fallbackToOldSDK();
     }
   } else {
     fallbackToOldSDK();
+  }
+}
+
+// Apply sticky app fix based on Telegram documentation
+function applyStickyAppFix() {
+  try {
+    // Check if we have the new SDK available
+    if (typeof window.telegramApps !== 'undefined' && window.telegramApps.sdk) {
+      const { retrieveLaunchParams } = window.telegramApps.sdk;
+      const lp = retrieveLaunchParams();
+      
+      console.log('Detected platform:', lp.platform);
+      
+      // Some versions of Telegram don't need the classes
+      if (['macos', 'tdesktop', 'weba', 'web', 'webk'].includes(lp.platform)) {
+        console.log('Desktop platform detected, skipping mobile fix');
+        return;
+      }
+    }
+    
+    // Apply mobile fix classes for sticky behavior
+    console.log('Applying sticky app fix for mobile platform');
+    document.body.classList.add('mobile-body');
+    
+    const wrapEl = document.getElementById('wrap');
+    const contentEl = document.getElementById('content');
+    
+    if (wrapEl) {
+      wrapEl.classList.add('mobile-wrap');
+    }
+    
+    if (contentEl) {
+      contentEl.classList.add('mobile-content');
+    }
+    
+    console.log('Sticky app fix applied successfully');
+  } catch (error) {
+    console.log('Error applying sticky app fix:', error);
+    // Apply fix anyway on mobile devices
+    if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+      console.log('Fallback: applying mobile fix based on user agent');
+      document.body.classList.add('mobile-body');
+      const wrapEl = document.getElementById('wrap');
+      const contentEl = document.getElementById('content');
+      if (wrapEl) wrapEl.classList.add('mobile-wrap');
+      if (contentEl) contentEl.classList.add('mobile-content');
+    }
   }
 }
 
@@ -919,7 +960,13 @@ function initializeEventListeners() {
 
 // Initialize when DOM is ready
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializeEventListeners);
+  document.addEventListener('DOMContentLoaded', () => {
+    // Apply sticky fix first, before any other initialization
+    applyStickyAppFix();
+    initializeEventListeners();
+  });
 } else {
+  // Apply sticky fix first, before any other initialization
+  applyStickyAppFix();
   initializeEventListeners();
 }

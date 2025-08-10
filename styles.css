@@ -375,9 +375,14 @@ button.success::after {
 }
 
 /* Telegram Mini App mobile fix - prevent closing on swipe down */
+/* Based on official docs: https://docs.telegram-mini-apps.com/platform/sticky-app */
 .mobile-body {
   overflow: hidden !important;
   height: 100vh !important;
+  /* Prevent iOS bounce effect */
+  -webkit-overflow-scrolling: touch;
+  position: fixed;
+  width: 100%;
 }
 
 .mobile-wrap {
@@ -388,10 +393,35 @@ button.success::after {
   bottom: 0 !important;
   overflow-x: hidden !important;
   overflow-y: auto !important;
+  /* Enable momentum scrolling on iOS */
+  -webkit-overflow-scrolling: touch;
 }
 
 .mobile-content {
   height: calc(100% + 1px) !important;
+  /* Minimum height to ensure content is scrollable */
+  min-height: calc(100vh + 1px) !important;
+}
+
+/* Additional fixes for better sticky behavior */
+.mobile-body,
+.mobile-body * {
+  /* Prevent text selection that can interfere with swipe detection */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Re-enable text selection for editor */
+.mobile-body .editor,
+.mobile-body .output,
+.mobile-body input,
+.mobile-body textarea {
+  -webkit-user-select: text !important;
+  -moz-user-select: text !important;
+  -ms-user-select: text !important;
+  user-select: text !important;
 }
 
 /* Responsive design */
