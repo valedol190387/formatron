@@ -848,10 +848,22 @@ function handleTextSelection() {
     return;
   }
   
-  // Calculate popup position
+  // Calculate popup position with mobile fix consideration
   const rect = range.getBoundingClientRect();
-  const x = rect.left + (rect.width / 2) - 120; // Center horizontally, offset for menu width
-  const y = rect.top - 50; // Position above selection
+  
+  // Check if mobile fix is applied
+  const isMobileFix = document.body.classList.contains('mobile-body');
+  let x, y;
+  
+  if (isMobileFix) {
+    // For mobile fix, use viewport coordinates but position below selection
+    x = rect.left + (rect.width / 2) - 120; // Center horizontally
+    y = rect.bottom + 8; // Position below selection for mobile
+  } else {
+    // Normal positioning for desktop
+    x = rect.left + (rect.width / 2) - 120; // Center horizontally
+    y = rect.top - 50; // Position above selection for desktop
+  }
   
   showPopupMenu(x, y);
 }
