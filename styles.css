@@ -76,6 +76,15 @@ body {
 .header-content { display: flex; justify-content: space-between; align-items: flex-start; }
 .title { font-weight: 600; font-size: 20px; }
 .subtitle { color: var(--muted); font-size: 13px; margin-top: 6px; }
+.subtitle a { 
+  color: var(--accent); 
+  text-decoration: none; 
+  transition: color 0.2s ease;
+}
+.subtitle a:hover { 
+  color: var(--accent-2); 
+  text-decoration: underline;
+}
 
 .theme-toggle {
   background: var(--panel-2);
