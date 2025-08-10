@@ -295,6 +295,85 @@ button.success::after {
 
 .app__footer { margin-top: 10px; color: var(--muted); font-size: 12px; }
 
+/* Popup formatting menu */
+.popup-menu {
+  position: absolute;
+  z-index: 1000;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  padding: 4px;
+  user-select: none;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.popup-menu__buttons {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.popup-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.popup-btn:hover {
+  background: var(--panel-2);
+  color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.popup-btn:active {
+  transform: translateY(0);
+  background: var(--accent);
+  color: var(--panel);
+}
+
+.popup-btn--clear {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.popup-btn--clear:hover {
+  background: var(--danger);
+  color: var(--panel);
+}
+
+/* Responsive popup for mobile */
+@media (max-width: 768px) {
+  .popup-menu {
+    border-radius: 12px;
+    padding: 6px;
+  }
+  
+  .popup-btn {
+    min-width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+  
+  .popup-menu__buttons {
+    gap: 4px;
+  }
+}
+
 /* Responsive design */
 @media (max-width: 768px) {
   .app { margin: 16px auto 40px; padding: 0 12px; }

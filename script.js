@@ -5,6 +5,7 @@ const editor = document.getElementById('editor');
 const output = document.getElementById('output');
 const statusEl = document.getElementById('status');
 const copyBtn = document.getElementById('btnCopy');
+const popupMenu = document.getElementById('popupMenu');
 
 // Utility functions
 function exec(command, value = null) {
@@ -292,6 +293,70 @@ function clearFormatting() {
   setStatus('Форматирование убрано, структура сохранена');
 }
 
+// Clear formatting for selected text only
+function clearSelectionFormatting() {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return;
+  
+  const range = selection.getRangeAt(0);
+  if (!editor.contains(range.commonAncestorContainer)) return;
+  
+  // Get selected content
+  const selectedContent = range.extractContents();
+  
+  // Function to strip formatting but keep text and line breaks
+  function stripFormattingFromNode(node) {
+    if (node.nodeType === 3) {
+      // Text node - return as is
+      return document.createTextNode(node.textContent);
+    }
+    
+    if (node.nodeType === 1) {
+      const tagName = node.tagName.toLowerCase();
+      
+      // For block elements, preserve structure with div
+      if (tagName === 'div' || tagName === 'p' || tagName === 'blockquote') {
+        const div = document.createElement('div');
+        for (const child of Array.from(node.childNodes)) {
+          div.appendChild(stripFormattingFromNode(child));
+        }
+        return div;
+      }
+      
+      // For BR, keep as is
+      if (tagName === 'br') {
+        return document.createElement('br');
+      }
+      
+      // For other elements, just extract text content
+      const fragment = document.createDocumentFragment();
+      for (const child of Array.from(node.childNodes)) {
+        fragment.appendChild(stripFormattingFromNode(child));
+      }
+      return fragment;
+    }
+    
+    return document.createTextNode('');
+  }
+  
+  // Process the selected content
+  const cleanFragment = document.createDocumentFragment();
+  for (const child of Array.from(selectedContent.childNodes)) {
+    cleanFragment.appendChild(stripFormattingFromNode(child));
+  }
+  
+  // Insert the cleaned content
+  range.insertNode(cleanFragment);
+  
+  // Restore selection
+  const newRange = document.createRange();
+  newRange.selectNodeContents(cleanFragment);
+  selection.removeAllRanges();
+  selection.addRange(newRange);
+  
+  setStatus('Форматирование убрано с выделенного текста');
+}
+
 function clearAllText() {
   editor.innerHTML = '';
   editor.focus();
@@ -555,7 +620,8 @@ function handleToolbarClick(e) {
     spoiler: () => toggleSpoiler(),
     link: addLink,
     clear: clearFormatting,
-    clearAll: clearAllText
+    clearAll: clearAllText,
+    clearSelection: clearSelectionFormatting
   };
   
   const action = actions[btn.dataset.action];
@@ -656,6 +722,72 @@ function initializePasteButton() {
   });
 }
 
+// Popup formatting menu functions
+function showPopupMenu(x, y) {
+  popupMenu.style.left = x + 'px';
+  popupMenu.style.top = y + 'px';
+  popupMenu.style.display = 'block';
+  
+  // Ensure menu stays within viewport
+  const rect = popupMenu.getBoundingClientRect();
+  const viewport = {
+    width: window.innerWidth,
+    height: window.innerHeight
+  };
+  
+  // Adjust horizontal position
+  if (rect.right > viewport.width - 10) {
+    popupMenu.style.left = (viewport.width - rect.width - 10) + 'px';
+  }
+  if (rect.left < 10) {
+    popupMenu.style.left = '10px';
+  }
+  
+  // Adjust vertical position
+  if (rect.bottom > viewport.height - 10) {
+    popupMenu.style.top = (y - rect.height - 10) + 'px';
+  }
+  if (rect.top < 10) {
+    popupMenu.style.top = '10px';
+  }
+}
+
+function hidePopupMenu() {
+  popupMenu.style.display = 'none';
+}
+
+function handleTextSelection() {
+  const selection = window.getSelection();
+  
+  // Hide menu if no selection or no text selected
+  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+    hidePopupMenu();
+    return;
+  }
+  
+  const range = selection.getRangeAt(0);
+  
+  // Only show if selection is within editor
+  if (!editor.contains(range.commonAncestorContainer)) {
+    hidePopupMenu();
+    return;
+  }
+  
+  // Get selection text to check if it's meaningful
+  const selectedText = selection.toString().trim();
+  if (!selectedText) {
+    hidePopupMenu();
+    return;
+  }
+  
+  // Calculate popup position
+  const rect = range.getBoundingClientRect();
+  const x = rect.left + (rect.width / 2) - 120; // Center horizontally, offset for menu width
+  const y = rect.top - 50; // Position above selection
+  
+  showPopupMenu(x, y);
+}
+
 // Event listeners
 function initializeEventListeners() {
   // Initialize Telegram Web App
@@ -690,6 +822,59 @@ function initializeEventListeners() {
   });
 
   editor.addEventListener('paste', sanitizeOnPaste);
+
+  // Text selection events for popup menu
+  document.addEventListener('selectionchange', handleTextSelection);
+  
+  // Hide popup when clicking outside
+  document.addEventListener('click', (e) => {
+    if (!popupMenu.contains(e.target) && !editor.contains(e.target)) {
+      hidePopupMenu();
+    }
+  });
+  
+  // Popup menu button events
+  popupMenu.addEventListener('click', (e) => {
+    const btn = e.target.closest('.popup-btn');
+    if (!btn) return;
+    
+    const action = btn.dataset.action;
+    
+    // Define the same actions as in handleToolbarClick
+    const actions = {
+      bold: () => exec('bold'),
+      italic: () => exec('italic'),
+      underline: () => exec('underline'),
+      strike: () => exec('strikeThrough'),
+      code: () => toggleCode(),
+      quote: () => toggleQuote(),
+      spoiler: () => toggleSpoiler(),
+      link: addLink,
+      clear: clearFormatting,
+      clearAll: clearAllText,
+      clearSelection: clearSelectionFormatting
+    };
+    
+    if (action && actions[action]) {
+      // Store current selection before it gets lost
+      const selection = window.getSelection();
+      const range = selection.rangeCount > 0 ? selection.getRangeAt(0).cloneRange() : null;
+      
+      // Apply formatting
+      actions[action]();
+      
+      // Restore selection if it was lost
+      if (range && selection.rangeCount === 0) {
+        selection.addRange(range);
+      }
+      
+      // Hide popup after formatting
+      hidePopupMenu();
+      
+      // Brief feedback
+      setStatus(`Применено: ${btn.title}`);
+    }
+  });
 
   // Button events
   document.querySelector('.toolbar').addEventListener('click', handleToolbarClick);
