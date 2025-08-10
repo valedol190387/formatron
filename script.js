@@ -49,23 +49,62 @@ function surroundInline(tagName, className) {
   // Check if there's actual text selected
   if (range.collapsed) return;
 
-  const wrapper = document.createElement(tagName);
-  if (className) wrapper.className = className;
-  try {
-    range.surroundContents(wrapper);
-    selection.removeAllRanges();
-    selection.addRange(range);
-  } catch (e) {
-    // Fallback for complex selections
-    const contents = range.extractContents();
-    wrapper.appendChild(contents);
-    range.insertNode(wrapper);
+  // Check if selection is already wrapped in this tag
+  const parentElement = range.commonAncestorContainer.nodeType === 1 
+    ? range.commonAncestorContainer 
+    : range.commonAncestorContainer.parentElement;
     
-    // Re-select the wrapped content
+  // Look for existing wrapper
+  let existingWrapper = null;
+  if (parentElement.tagName === tagName.toUpperCase()) {
+    if (!className || parentElement.classList.contains(className)) {
+      existingWrapper = parentElement;
+    }
+  } else {
+    // Check if selection is fully within a wrapper of this type
+    let current = parentElement;
+    while (current && current !== editor) {
+      if (current.tagName === tagName.toUpperCase()) {
+        if (!className || current.classList.contains(className)) {
+          existingWrapper = current;
+          break;
+        }
+      }
+      current = current.parentElement;
+    }
+  }
+  
+  if (existingWrapper) {
+    // Remove existing formatting
+    const text = existingWrapper.textContent;
+    const textNode = document.createTextNode(text);
+    existingWrapper.replaceWith(textNode);
+    
+    // Select the unwrapped text
     const newRange = document.createRange();
-    newRange.selectNodeContents(wrapper);
+    newRange.selectNodeContents(textNode);
     selection.removeAllRanges();
     selection.addRange(newRange);
+  } else {
+    // Add new formatting
+    const wrapper = document.createElement(tagName);
+    if (className) wrapper.className = className;
+    try {
+      range.surroundContents(wrapper);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    } catch (e) {
+      // Fallback for complex selections
+      const contents = range.extractContents();
+      wrapper.appendChild(contents);
+      range.insertNode(wrapper);
+      
+      // Re-select the wrapped content
+      const newRange = document.createRange();
+      newRange.selectNodeContents(wrapper);
+      selection.removeAllRanges();
+      selection.addRange(newRange);
+    }
   }
   editor.focus();
 }
@@ -75,29 +114,57 @@ function wrapAsBlockQuote() {
   if (!selection || selection.rangeCount === 0) return;
   const range = selection.getRangeAt(0);
   if (!editor.contains(range.commonAncestorContainer)) return;
+  
+  if (range.collapsed) return;
 
-  const blockquote = document.createElement('blockquote');
-  try {
-    range.surroundContents(blockquote);
-  } catch {
-    const contents = range.cloneContents();
-    blockquote.appendChild(contents);
-    range.deleteContents();
-    range.insertNode(blockquote);
+  // Check if selection is already in a blockquote
+  const parentElement = range.commonAncestorContainer.nodeType === 1 
+    ? range.commonAncestorContainer 
+    : range.commonAncestorContainer.parentElement;
+    
+  let existingBlockquote = null;
+  if (parentElement.tagName === 'BLOCKQUOTE') {
+    existingBlockquote = parentElement;
+  } else {
+    let current = parentElement;
+    while (current && current !== editor) {
+      if (current.tagName === 'BLOCKQUOTE') {
+        existingBlockquote = current;
+        break;
+      }
+      current = current.parentElement;
+    }
+  }
+  
+  if (existingBlockquote) {
+    // Remove blockquote formatting
+    const text = existingBlockquote.textContent;
+    const textNode = document.createTextNode(text);
+    existingBlockquote.replaceWith(textNode);
+    
+    // Select the unwrapped text
+    const newRange = document.createRange();
+    newRange.selectNodeContents(textNode);
+    selection.removeAllRanges();
+    selection.addRange(newRange);
+  } else {
+    // Add blockquote formatting
+    const blockquote = document.createElement('blockquote');
+    try {
+      range.surroundContents(blockquote);
+    } catch {
+      const contents = range.cloneContents();
+      blockquote.appendChild(contents);
+      range.deleteContents();
+      range.insertNode(blockquote);
+    }
   }
   editor.focus();
 }
 
 function toggleSpoiler() {
-  const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0) return;
-  const range = selection.getRangeAt(0);
-  if (!editor.contains(range.commonAncestorContainer)) return;
-
-  const span = document.createElement('span');
-  span.className = 'spoiler';
-  range.surroundContents(span);
-  editor.focus();
+  // Use the unified surroundInline function with spoiler class
+  surroundInline('span', 'spoiler');
 }
 
 function addLink() {
@@ -125,19 +192,15 @@ function sanitizeOnPaste(e) {
   if (!editor.textContent.trim()) placeCaretAtStart(editor);
 
   if (html && html.trim()) {
-    console.log('Pasting HTML from clipboard:', html);
     const clean = cleanHTML(html);
-    console.log('Cleaned HTML:', clean);
     document.execCommand('insertHTML', false, clean);
-    setStatus('Вставлено с сохранением форматирования');
   } else if (text && text.trim()) {
     document.execCommand('insertText', false, text);
-    setStatus('Вставлен простой текст');
   }
 }
 
 function cleanHTML(html) {
-  const allowedInline = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'S', 'DEL', 'STRIKE', 'CODE', 'TT', 'SPAN', 'A', 'PRE']);
+  const allowedInline = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'S', 'DEL', 'STRIKE', 'CODE', 'TT', 'SPAN', 'A']);
   const allowedBlock = new Set(['DIV', 'P', 'BR', 'BLOCKQUOTE']);
   const template = document.createElement('template');
   template.innerHTML = html;
@@ -147,71 +210,17 @@ function cleanHTML(html) {
   while (walker.nextNode()) {
     const el = walker.currentNode;
     const tag = el.tagName;
-    
-    // Handle Telegram-specific classes and styles
-    if (tag === 'SPAN') {
-      const className = el.className;
-      const style = el.style.cssText;
-      
-      // Convert Telegram spoiler classes
-      if (className.includes('spoiler') || className.includes('tg-spoiler') || style.includes('spoiler')) {
-        el.className = 'spoiler';
-        el.removeAttribute('style');
-        continue;
-      }
-      
-      // Convert style-based formatting to proper tags
-      if (style.includes('font-weight: bold') || style.includes('font-weight: 700')) {
-        const b = document.createElement('b');
-        b.innerHTML = el.innerHTML;
-        el.replaceWith(b);
-        continue;
-      }
-      
-      if (style.includes('font-style: italic')) {
-        const i = document.createElement('i');
-        i.innerHTML = el.innerHTML;
-        el.replaceWith(i);
-        continue;
-      }
-      
-      if (style.includes('text-decoration: underline')) {
-        const u = document.createElement('u');
-        u.innerHTML = el.innerHTML;
-        el.replaceWith(u);
-        continue;
-      }
-      
-      if (style.includes('text-decoration: line-through')) {
-        const s = document.createElement('s');
-        s.innerHTML = el.innerHTML;
-        el.replaceWith(s);
-        continue;
-      }
-    }
-    
-    // Convert PRE to CODE for inline code
-    if (tag === 'PRE') {
-      const code = document.createElement('code');
-      code.textContent = el.textContent;
-      el.replaceWith(code);
-      continue;
-    }
-    
     if (!allowedInline.has(tag) && !allowedBlock.has(tag)) {
       toRemove.push(el);
       continue;
     }
-    
-    // Clean attributes
     [...el.attributes].forEach(attr => {
-      if (!(el.tagName === 'A' && attr.name === 'href') && 
-          !(el.tagName === 'SPAN' && attr.name === 'class' && el.className === 'spoiler')) {
-        el.removeAttribute(attr.name);
-      }
+      if (!(el.tagName === 'A' && attr.name === 'href')) el.removeAttribute(attr.name);
     });
+    if (el.tagName === 'SPAN' && el.className !== 'spoiler') {
+      el.removeAttribute('class');
+    }
   }
-  
   toRemove.forEach(el => el.replaceWith(...el.childNodes));
   return template.innerHTML;
 }
