@@ -856,9 +856,15 @@ function handleTextSelection() {
   let x, y;
   
   if (isMobileFix) {
-    // For mobile fix, use viewport coordinates but position below selection
-    x = rect.left + (rect.width / 2) - 120; // Center horizontally
-    y = rect.bottom + 8; // Position below selection for mobile
+    // For mobile fix, calculate position relative to the scrollable container
+    const contentEl = document.getElementById('content');
+    const contentRect = contentEl ? contentEl.getBoundingClientRect() : { left: 0, top: 0 };
+    const scrollTop = contentEl ? contentEl.scrollTop : 0;
+    
+    x = rect.left - contentRect.left + (rect.width / 2) - 120; // Center horizontally relative to content
+    y = rect.bottom - contentRect.top + scrollTop + 8; // Position below selection accounting for scroll
+    
+    console.log('Mobile popup position:', { x, y, rectBottom: rect.bottom, contentTop: contentRect.top, scrollTop });
   } else {
     // Normal positioning for desktop
     x = rect.left + (rect.width / 2) - 120; // Center horizontally

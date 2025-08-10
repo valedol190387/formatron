@@ -311,8 +311,13 @@ button.success::after {
 
 /* Popup menu positioning fix for mobile sticky app */
 .mobile-body .popup-menu {
-  position: fixed;
-  /* Use fixed positioning for mobile to work with sticky app fix */
+  position: absolute;
+  /* Use absolute positioning relative to content container for mobile */
+}
+
+.mobile-body #content {
+  position: relative;
+  /* Ensure content container is positioned for absolute children */
 }
 
 .popup-menu__buttons {
