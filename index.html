@@ -7,70 +7,75 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="./styles.css?v=16" />
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <link rel="stylesheet" href="./styles.css?v=17" />
+    <script src="https://unpkg.com/@telegram-apps/sdk@1.0.0/dist/index.iife.js"></script>
   </head>
   <body>
-    <div class="app">
-      <header class="app__header">
-        <div class="header-content">
-          <div class="header-text">
-            <div class="title">Formatron</div>
-            <div class="subtitle">Минималистичный редактор под формат Телеграма для Salebot</div>
+    <div id="wrap">
+      <div id="content">
+        <div class="app">
+          <header class="app__header">
+            <div class="header-content">
+              <div class="header-text">
+                <div class="title">Formatron</div>
+                <div class="subtitle">Минималистичный редактор под формат Телеграма для Salebot</div>
+              </div>
+              <button id="themeToggle" class="theme-toggle" title="Переключить тему">🌙</button>
+            </div>
+          </header>
+
+          <section class="toolbar" aria-label="Панель форматирования">
+            <button data-action="bold" title="Жирный (Cmd/Ctrl+B)">Жирный</button>
+            <button data-action="italic" title="Курсив (Cmd/Ctrl+I)">Курсив</button>
+            <button data-action="underline" title="Подчёркнутый (Cmd/Ctrl+U)">Подчёркнутый</button>
+            <button data-action="strike" title="Зачёркнутый">Зачёркнутый</button>
+            <button data-action="code" title="Моноширинный">Моноширинный</button>
+            <button data-action="quote" title="Цитата">Цитата</button>
+            <button data-action="spoiler" title="Спойлер">Спойлер</button>
+            <button data-action="link" title="Добавить ссылку">Ссылка</button>
+            <button data-action="clear" class="tone-danger" title="Убрать все форматирование">Очистить все</button>
+            <button data-action="clearAll" class="tone-danger" title="Убрать весь текст">Убрать текст</button>
+          </section>
+
+          <section class="editor-wrap">
+            <div id="editor" class="editor" contenteditable="true" role="textbox" aria-multiline="true" spellcheck="false" data-placeholder="Вставьте или напишите текст здесь…"></div>
+            <button id="pasteBtn" class="paste-btn" style="display: none;">📋 Вставить из буфера</button>
+          </section>
+
+          <section class="export">
+            <div class="export__buttons">
+              <button id="btnExportHtml" class="tone-blue">Экспорт: HTML</button>
+              <button id="btnExportMd" class="tone-green">Экспорт: MarkdownV2</button>
+              <button id="btnExportCalc" class="tone-purple">Экспорт: Калькулятор</button>
+              <button id="btnCopy" class="tone-gray" title="Скопировать результат">Копировать</button>
+            </div>
+            <div id="status" class="status" role="status" aria-live="polite"></div>
+            <textarea id="output" class="output" placeholder="Здесь появится результат экспорта" readonly></textarea>
+          </section>
+
+          <footer class="app__footer">
+            Поддерживаются: <b>Жирный</b>, <i>Курсив</i>, <u>Подчёркнутый</u>, <s>Зачёркнутый</s>, <code>Моноширинный</code>, Цитаты, Спойлеры и Ссылки.
+          </footer>
+        </div>
+
+        <!-- Popup formatting menu -->
+        <div id="popupMenu" class="popup-menu" style="display: none;">
+          <div class="popup-menu__buttons">
+            <button class="popup-btn" data-action="bold" title="Жирный">B</button>
+            <button class="popup-btn" data-action="italic" title="Курсив">I</button>
+            <button class="popup-btn" data-action="underline" title="Подчёркнутый">U</button>
+            <button class="popup-btn" data-action="strike" title="Зачёркнутый">S</button>
+            <button class="popup-btn" data-action="code" title="Моноширный">`</button>
+            <button class="popup-btn" data-action="quote" title="Цитата">❝</button>
+            <button class="popup-btn" data-action="spoiler" title="Спойлер">◉</button>
+            <button class="popup-btn" data-action="link" title="Ссылка">🔗</button>
+            <button class="popup-btn popup-btn--clear" data-action="clearSelection" title="Очистить выделение">✕</button>
           </div>
-          <button id="themeToggle" class="theme-toggle" title="Переключить тему">🌙</button>
         </div>
-      </header>
 
-      <section class="toolbar" aria-label="Панель форматирования">
-        <button data-action="bold" title="Жирный (Cmd/Ctrl+B)">Жирный</button>
-        <button data-action="italic" title="Курсив (Cmd/Ctrl+I)">Курсив</button>
-        <button data-action="underline" title="Подчёркнутый (Cmd/Ctrl+U)">Подчёркнутый</button>
-        <button data-action="strike" title="Зачёркнутый">Зачёркнутый</button>
-        <button data-action="code" title="Моноширинный">Моноширинный</button>
-        <button data-action="quote" title="Цитата">Цитата</button>
-        <button data-action="spoiler" title="Спойлер">Спойлер</button>
-        <button data-action="link" title="Добавить ссылку">Ссылка</button>
-        <button data-action="clear" class="tone-danger" title="Убрать все форматирование">Очистить все</button>
-        <button data-action="clearAll" class="tone-danger" title="Убрать весь текст">Убрать текст</button>
-      </section>
-
-      <section class="editor-wrap">
-        <div id="editor" class="editor" contenteditable="true" role="textbox" aria-multiline="true" spellcheck="false" data-placeholder="Вставьте или напишите текст здесь…"></div>
-        <button id="pasteBtn" class="paste-btn" style="display: none;">📋 Вставить из буфера</button>
-      </section>
-
-      <section class="export">
-        <div class="export__buttons">
-          <button id="btnExportHtml" class="tone-blue">Экспорт: HTML</button>
-          <button id="btnExportMd" class="tone-green">Экспорт: MarkdownV2</button>
-          <button id="btnExportCalc" class="tone-purple">Экспорт: Калькулятор</button>
-          <button id="btnCopy" class="tone-gray" title="Скопировать результат">Копировать</button>
-        </div>
-        <div id="status" class="status" role="status" aria-live="polite"></div>
-        <textarea id="output" class="output" placeholder="Здесь появится результат экспорта" readonly></textarea>
-      </section>
-
-      <footer class="app__footer">
-        Поддерживаются: <b>Жирный</b>, <i>Курсив</i>, <u>Подчёркнутый</u>, <s>Зачёркнутый</s>, <code>Моноширинный</code>, Цитаты, Спойлеры и Ссылки.
-      </footer>
-    </div>
-
-    <!-- Popup formatting menu -->
-    <div id="popupMenu" class="popup-menu" style="display: none;">
-      <div class="popup-menu__buttons">
-        <button class="popup-btn" data-action="bold" title="Жирный">B</button>
-        <button class="popup-btn" data-action="italic" title="Курсив">I</button>
-        <button class="popup-btn" data-action="underline" title="Подчёркнутый">U</button>
-        <button class="popup-btn" data-action="strike" title="Зачёркнутый">S</button>
-        <button class="popup-btn" data-action="code" title="Моноширный">`</button>
-        <button class="popup-btn" data-action="quote" title="Цитата">❝</button>
-        <button class="popup-btn" data-action="spoiler" title="Спойлер">◉</button>
-        <button class="popup-btn" data-action="link" title="Ссылка">🔗</button>
-        <button class="popup-btn popup-btn--clear" data-action="clearSelection" title="Очистить выделение">✕</button>
       </div>
     </div>
 
-    <script src="./script.js?v=14"></script>
+    <script src="./script.js?v=15"></script>
   </body>
 </html>

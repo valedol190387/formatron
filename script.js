@@ -650,19 +650,46 @@ function initializeTheme() {
 
 // Telegram Mini App integration
 function initializeTelegramWebApp() {
+  // New SDK initialization with mobile fix
+  if (typeof window.telegramApps !== 'undefined' && window.telegramApps.sdk) {
+    try {
+      const { retrieveLaunchParams, postEvent } = window.telegramApps.sdk;
+      const lp = retrieveLaunchParams();
+
+      // Some versions of Telegram don't need the mobile fix
+      if (!['macos', 'tdesktop', 'weba', 'web', 'webk'].includes(lp.platform)) {
+        // Apply mobile fix for mobile platforms
+        document.body.classList.add('mobile-body');
+        document.getElementById('wrap').classList.add('mobile-wrap');
+        document.getElementById('content').classList.add('mobile-content');
+      }
+
+      // Expand the application
+      postEvent('web_app_expand');
+      
+      console.log('Telegram Web App initialized with mobile fix for platform:', lp.platform);
+    } catch (error) {
+      console.log('Failed to initialize new SDK, falling back to old SDK');
+      fallbackToOldSDK();
+    }
+  } else {
+    fallbackToOldSDK();
+  }
+}
+
+// Fallback to old SDK if new one fails
+function fallbackToOldSDK() {
   if (typeof window.Telegram !== 'undefined' && window.Telegram.WebApp) {
     const tg = window.Telegram.WebApp;
-    
-    // Expand to full screen
     tg.expand();
-    
-    // Ready signal
     tg.ready();
     
-    // Optional: Hide back button if shown
-    tg.BackButton.hide();
+    // Hide back button if exists
+    if (tg.BackButton) {
+      tg.BackButton.hide();
+    }
     
-    console.log('Telegram Web App initialized');
+    console.log('Telegram Web App initialized with old SDK');
   }
 }
 
