@@ -40,8 +40,8 @@
   --tone-purple-bg: #f3e8ff;
   --tone-purple-bd: #9c27b0;
   --tone-purple-tx: #6a1b9a;
-  --tone-danger-bg: #fce8e6;
-  --tone-danger-bd: #ea4335;
+  --tone-danger-bg: #ffffff;
+  --tone-danger-bd: #d93025;
   --tone-danger-tx: #d93025;
 
   /* toned colors */
@@ -239,11 +239,30 @@ button.success::after {
   margin: 8px 0 8px 0;
   padding: 8px 12px;
   border-left: 3px solid var(--accent);
-  background: #141423;
+  background: var(--panel-2);
   border-radius: 6px;
 }
-.editor .spoiler { background: #2b2b3d; color: transparent; text-shadow: 0 0 8px #000; border-radius: 6px; padding: 2px 6px; }
+.editor .spoiler { 
+  background: var(--panel-2); 
+  color: transparent; 
+  text-shadow: 0 0 8px var(--text); 
+  border-radius: 6px; 
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+}
 .editor .spoiler.revealed { color: var(--text); text-shadow: none; }
+
+/* Light theme specific styles */
+[data-theme="light"] .editor blockquote {
+  background: #f8f9fa;
+  border-left-color: var(--accent);
+  color: var(--text);
+}
+[data-theme="light"] .editor .spoiler {
+  background: #e8eaed;
+  border: 1px solid #dadce0;
+  text-shadow: 0 0 8px #5f6368;
+}
 
 .export { margin-top: 16px; }
 .export__buttons { display: flex; gap: 12px; margin-bottom: 6px; flex-wrap: wrap; }
@@ -254,10 +273,24 @@ button.success::after {
   padding: 12px;
   border-radius: 12px;
   border: 1px solid var(--border);
-  background: #0c0c12;
-  color: var(--accent-2);
+  background: var(--panel-2);
+  color: var(--text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 13px;
+}
+
+/* Light theme output */
+[data-theme="light"] .output {
+  background: #f8f9fa;
+  color: #202124;
+  border: 1px solid #dadce0;
+}
+
+/* Light theme danger buttons - no fill, only border */
+[data-theme="light"] .tone-danger {
+  background: transparent !important;
+  color: #d93025 !important;
+  border: 2px solid #d93025 !important;
 }
 
 .app__footer { margin-top: 10px; color: var(--muted); font-size: 12px; }
@@ -307,3 +340,4 @@ button.success::after {
     min-height: 48px;
   }
 }
+

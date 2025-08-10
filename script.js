@@ -162,9 +162,79 @@ function wrapAsBlockQuote() {
   editor.focus();
 }
 
+function toggleCode() {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return;
+  
+  // Check if we're already in a code element
+  let current = selection.focusNode;
+  while (current && current !== editor) {
+    if (current.tagName === 'CODE') {
+      // Remove code formatting
+      const text = current.textContent;
+      current.replaceWith(document.createTextNode(text));
+      return;
+    }
+    current = current.parentElement;
+  }
+  
+  // Add code formatting if not present
+  try {
+    exec('insertHTML', `<code>${selection.toString()}</code>`);
+  } catch {
+    // Fallback
+    surroundInline('code');
+  }
+}
+
+function toggleQuote() {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return;
+  
+  // Check if we're already in a blockquote
+  let current = selection.focusNode;
+  while (current && current !== editor) {
+    if (current.tagName === 'BLOCKQUOTE') {
+      // Remove blockquote formatting
+      const text = current.textContent;
+      current.replaceWith(document.createTextNode(text));
+      return;
+    }
+    current = current.parentElement;
+  }
+  
+  // Add blockquote formatting if not present
+  try {
+    exec('insertHTML', `<blockquote>${selection.toString()}</blockquote>`);
+  } catch {
+    // Fallback
+    wrapAsBlockQuote();
+  }
+}
+
 function toggleSpoiler() {
-  // Use the unified surroundInline function with spoiler class
-  surroundInline('span', 'spoiler');
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0) return;
+  
+  // Check if we're already in a spoiler span
+  let current = selection.focusNode;
+  while (current && current !== editor) {
+    if (current.tagName === 'SPAN' && current.classList.contains('spoiler')) {
+      // Remove spoiler formatting
+      const text = current.textContent;
+      current.replaceWith(document.createTextNode(text));
+      return;
+    }
+    current = current.parentElement;
+  }
+  
+  // Add spoiler formatting if not present
+  try {
+    exec('insertHTML', `<span class="spoiler">${selection.toString()}</span>`);
+  } catch {
+    // Fallback
+    surroundInline('span', 'spoiler');
+  }
 }
 
 function addLink() {
@@ -174,12 +244,64 @@ function addLink() {
 }
 
 function clearFormatting() {
-  exec('removeFormat');
-  const links = editor.querySelectorAll('a');
-  links.forEach(a => {
-    const text = document.createTextNode(a.textContent || a.href);
-    a.replaceWith(text);
+  // Remove all formatting but keep line breaks
+  function stripFormatting(node) {
+    if (node.nodeType === 3) {
+      // Text node - keep as is
+      return node.textContent;
+    }
+    
+    if (node.nodeType === 1) {
+      // Element node
+      const tagName = node.tagName.toLowerCase();
+      let result = '';
+      
+      // Process child nodes
+      for (const child of node.childNodes) {
+        result += stripFormatting(child);
+      }
+      
+      // Add line breaks for block elements
+      if (tagName === 'div' || tagName === 'p' || tagName === 'blockquote' || tagName === 'br') {
+        result += '\n';
+      }
+      
+      return result;
+    }
+    
+    return '';
+  }
+  
+  // Get text with preserved line breaks
+  const textWithBreaks = stripFormatting(editor);
+  
+  // Replace content preserving line structure
+  const lines = textWithBreaks.split('\n');
+  editor.innerHTML = '';
+  
+  lines.forEach((line, index) => {
+    if (line.trim() || index === 0) {
+      editor.appendChild(document.createTextNode(line));
+    }
+    if (index < lines.length - 1) {
+      editor.appendChild(document.createElement('br'));
+    }
   });
+  
+  editor.focus();
+  setStatus('Форматирование убрано, структура сохранена');
+}
+
+function clearAllText() {
+  editor.innerHTML = '';
+  editor.focus();
+  setStatus('Редактор очищен');
+  
+  // Show paste button if editor is empty
+  const pasteBtn = document.getElementById('pasteBtn');
+  if (pasteBtn) {
+    pasteBtn.style.display = 'block';
+  }
 }
 
 // Paste handling with sanitization
@@ -427,12 +549,13 @@ function handleToolbarClick(e) {
     bold: () => exec('bold'),
     italic: () => exec('italic'),
     underline: () => exec('underline'),
-    strike: () => surroundInline('s'),
-    code: () => surroundInline('code'),
-    quote: wrapAsBlockQuote,
-    spoiler: toggleSpoiler,
+    strike: () => exec('strikeThrough'),
+    code: () => toggleCode(),
+    quote: () => toggleQuote(),
+    spoiler: () => toggleSpoiler(),
     link: addLink,
-    clear: clearFormatting
+    clear: clearFormatting,
+    clearAll: clearAllText
   };
   
   const action = actions[btn.dataset.action];
