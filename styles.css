@@ -492,68 +492,61 @@ button.success::after {
 
 /* Telegram notice */
 .telegram-notice {
-  position: fixed;
-  bottom: 20px;
-  left: 20px;
-  right: 20px;
-  z-index: 1000;
-  max-width: 600px;
-  margin: 0 auto;
+  margin-top: 20px;
 }
 
 .telegram-notice__content {
-  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
   border-radius: 12px;
   padding: 16px 20px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(251, 191, 36, 0.3);
+  font-family: var(--font-family);
+  position: relative;
+}
+
+.telegram-notice__content::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  border-radius: 2px 0 0 2px;
 }
 
 .telegram-notice__icon {
-  font-size: 24px;
+  font-size: 18px;
   flex-shrink: 0;
+  margin-top: 1px;
 }
 
 .telegram-notice__text {
-  color: #1a1a1a;
+  color: var(--text-primary);
   font-size: 14px;
-  line-height: 1.4;
-  font-weight: 500;
+  line-height: 1.5;
+  font-weight: 400;
 }
 
 .telegram-notice__text strong {
-  font-weight: 700;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 /* Light theme adjustments */
 [data-theme="light"] .telegram-notice__content {
-  background: linear-gradient(135deg, #fbbf24, #f59e0b);
-  border-color: rgba(251, 191, 36, 0.4);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  background: var(--bg-secondary);
+  border-color: var(--border-primary);
 }
 
-/* Mobile adjustments */
-@media (max-width: 768px) {
-  .telegram-notice {
-    left: 10px;
-    right: 10px;
-    bottom: 10px;
-  }
-  
-  .telegram-notice__content {
-    padding: 14px 16px;
-    gap: 10px;
-  }
-  
-  .telegram-notice__icon {
-    font-size: 20px;
-  }
-  
-  .telegram-notice__text {
-    font-size: 13px;
-  }
+[data-theme="light"] .telegram-notice__text {
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .telegram-notice__text strong {
+  color: var(--text-primary);
 }
 
