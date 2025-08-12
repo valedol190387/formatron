@@ -203,6 +203,21 @@ button.success::after {
   line-height: 1.6;
   outline: none;
   white-space: pre-wrap;
+  /* Ensure spaces and tabs are preserved exactly as entered */
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  /* Prevent browser from collapsing multiple spaces */
+  white-space: pre-wrap !important;
+  /* Force consistent line breaks */
+  -webkit-nbsp-mode: space;
+  -webkit-line-break: after-white-space;
+}
+
+/* Ensure line breaks are respected in all formatted elements */
+.editor br {
+  display: block;
+  margin: 0;
+  line-height: inherit;
 }
 .editor:empty::before { content: attr(data-placeholder); color: var(--muted); }
 .editor:focus { border-color: var(--accent); box-shadow: var(--shadow); }

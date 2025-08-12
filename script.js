@@ -245,10 +245,10 @@ function addLink() {
 }
 
 function clearFormatting() {
-  // Remove all formatting but keep line breaks
-  function stripFormatting(node) {
+  // Remove all formatting but preserve EXACT whitespace structure
+  function stripFormattingPreserveWhitespace(node) {
     if (node.nodeType === 3) {
-      // Text node - keep as is
+      // Text node - keep EXACTLY as is, don't trim!
       return node.textContent;
     }
     
@@ -259,11 +259,16 @@ function clearFormatting() {
       
       // Process child nodes
       for (const child of node.childNodes) {
-        result += stripFormatting(child);
+        result += stripFormattingPreserveWhitespace(child);
       }
       
-      // Add line breaks for block elements
-      if (tagName === 'div' || tagName === 'p' || tagName === 'blockquote' || tagName === 'br') {
+      // Add line breaks ONLY for true block elements, and only if they're not empty
+      if (tagName === 'div' || tagName === 'p' || tagName === 'blockquote') {
+        // Only add newline if this isn't the last element and has content
+        if (result.length > 0 && !result.endsWith('\n')) {
+          result += '\n';
+        }
+      } else if (tagName === 'br') {
         result += '\n';
       }
       
@@ -273,24 +278,24 @@ function clearFormatting() {
     return '';
   }
   
-  // Get text with preserved line breaks
-  const textWithBreaks = stripFormatting(editor);
+  // Get text with preserved exact whitespace
+  const textWithExactWhitespace = stripFormattingPreserveWhitespace(editor);
   
-  // Replace content preserving line structure
-  const lines = textWithBreaks.split('\n');
+  // Clear editor and insert as plain text, preserving all whitespace
   editor.innerHTML = '';
   
-  lines.forEach((line, index) => {
-    if (line.trim() || index === 0) {
-      editor.appendChild(document.createTextNode(line));
-    }
-    if (index < lines.length - 1) {
-      editor.appendChild(document.createElement('br'));
-    }
-  });
+  // Use insertText to preserve whitespace exactly
+  const selection = window.getSelection();
+  const range = document.createRange();
+  range.setStart(editor, 0);
+  range.collapse(true);
+  selection.removeAllRanges();
+  selection.addRange(range);
+  
+  document.execCommand('insertText', false, textWithExactWhitespace);
   
   editor.focus();
-  setStatus('Форматирование убрано, структура сохранена');
+  setStatus('Форматирование убрано, отступы сохранены полностью');
 }
 
 // Clear formatting for selected text only
@@ -301,60 +306,16 @@ function clearSelectionFormatting() {
   const range = selection.getRangeAt(0);
   if (!editor.contains(range.commonAncestorContainer)) return;
   
-  // Get selected content
-  const selectedContent = range.extractContents();
+  // Get the exact text content preserving all whitespace
+  const selectedText = range.toString();
   
-  // Function to strip formatting but keep text and line breaks
-  function stripFormattingFromNode(node) {
-    if (node.nodeType === 3) {
-      // Text node - return as is
-      return document.createTextNode(node.textContent);
-    }
-    
-    if (node.nodeType === 1) {
-      const tagName = node.tagName.toLowerCase();
-      
-      // For block elements, preserve structure with div
-      if (tagName === 'div' || tagName === 'p' || tagName === 'blockquote') {
-        const div = document.createElement('div');
-        for (const child of Array.from(node.childNodes)) {
-          div.appendChild(stripFormattingFromNode(child));
-        }
-        return div;
-      }
-      
-      // For BR, keep as is
-      if (tagName === 'br') {
-        return document.createElement('br');
-      }
-      
-      // For other elements, just extract text content
-      const fragment = document.createDocumentFragment();
-      for (const child of Array.from(node.childNodes)) {
-        fragment.appendChild(stripFormattingFromNode(child));
-      }
-      return fragment;
-    }
-    
-    return document.createTextNode('');
-  }
+  // Delete the selected content and insert plain text
+  range.deleteContents();
   
-  // Process the selected content
-  const cleanFragment = document.createDocumentFragment();
-  for (const child of Array.from(selectedContent.childNodes)) {
-    cleanFragment.appendChild(stripFormattingFromNode(child));
-  }
+  // Insert the text exactly as it was, preserving all whitespace
+  document.execCommand('insertText', false, selectedText);
   
-  // Insert the cleaned content
-  range.insertNode(cleanFragment);
-  
-  // Restore selection
-  const newRange = document.createRange();
-  newRange.selectNodeContents(cleanFragment);
-  selection.removeAllRanges();
-  selection.addRange(newRange);
-  
-  setStatus('Форматирование убрано с выделенного текста');
+  setStatus('Форматирование убрано с выделенного текста, отступы сохранены');
 }
 
 function clearAllText() {
@@ -381,7 +342,8 @@ function sanitizeOnPaste(e) {
   if (html && html.trim()) {
     const clean = cleanHTML(html);
     document.execCommand('insertHTML', false, clean);
-  } else if (text && text.trim()) {
+  } else if (text) {
+    // Preserve all whitespace exactly as provided - даже пустой текст!
     document.execCommand('insertText', false, text);
   }
 }
@@ -424,8 +386,10 @@ function escapeHtml(str) {
 // Export to Telegram HTML
 function exportToTelegramHTML(root) {
   const out = [];
-  function walk(node) {
+  
+  function walk(node, isLastChild = false) {
     if (node.nodeType === 3) {
+      // Preserve ALL whitespace exactly as it is - no trimming!
       out.push(escapeHtml(node.nodeValue));
       return;
     }
@@ -436,7 +400,11 @@ function exportToTelegramHTML(root) {
 
     const openClose = (open, close) => {
       out.push(open);
-      for (const child of el.childNodes) walk(child);
+      // Process children
+      const children = Array.from(el.childNodes);
+      children.forEach((child, index) => {
+        walk(child, index === children.length - 1);
+      });
       out.push(close);
     };
 
@@ -460,28 +428,53 @@ function exportToTelegramHTML(root) {
         return openClose('<blockquote>', '</blockquote>');
       case 'SPAN':
         if (el.classList.contains('spoiler')) return openClose('<span class="tg-spoiler">', '</span>');
-        for (const child of el.childNodes) walk(child);
+        const children = Array.from(el.childNodes);
+        children.forEach((child, index) => {
+          walk(child, index === children.length - 1);
+        });
         return;
       case 'A':
         const href = el.getAttribute('href') || '#';
         out.push(`<a href="${escapeHtml(href)}">`);
-        for (const child of el.childNodes) walk(child);
+        const linkChildren = Array.from(el.childNodes);
+        linkChildren.forEach((child, index) => {
+          walk(child, index === linkChildren.length - 1);
+        });
         out.push('</a>');
         return;
       case 'DIV':
       case 'P':
-        for (const child of el.childNodes) walk(child);
-        out.push('\n');
+        const divChildren = Array.from(el.childNodes);
+        divChildren.forEach((child, index) => {
+          walk(child, index === divChildren.length - 1);
+        });
+        // Only add newline if this div/p has actual content
+        if (el.textContent.length > 0) {
+          out.push('\n');
+        }
         return;
       case 'BR':
         out.push('\n');
         return;
       default:
-        for (const child of el.childNodes) walk(child);
+        const defaultChildren = Array.from(el.childNodes);
+        defaultChildren.forEach((child, index) => {
+          walk(child, index === defaultChildren.length - 1);
+        });
     }
   }
-  for (const child of root.childNodes) walk(child);
-  return out.join('');
+  
+  // Process all children of root
+  const rootChildren = Array.from(root.childNodes);
+  rootChildren.forEach((child, index) => {
+    walk(child, index === rootChildren.length - 1);
+  });
+  
+  // Clean up the result - remove trailing newlines but preserve internal structure
+  let result = out.join('');
+  // Remove only trailing newlines, not leading or internal ones
+  result = result.replace(/\n+$/, '');
+  return result;
 }
 
 // Telegram MarkdownV2 escaping
@@ -491,8 +484,10 @@ function mdEscape(text) {
 
 function exportToMarkdownV2(root) {
   const out = [];
-  function walk(node) {
+  
+  function walk(node, isLastChild = false) {
     if (node.nodeType === 3) {
+      // Preserve ALL whitespace exactly as it is for MarkdownV2 too
       out.push(mdEscape(node.nodeValue));
       return;
     }
@@ -501,7 +496,11 @@ function exportToMarkdownV2(root) {
     const el = node;
     const openClose = (open, close) => {
       out.push(open);
-      for (const child of el.childNodes) walk(child);
+      // Process children
+      const children = Array.from(el.childNodes);
+      children.forEach((child, index) => {
+        walk(child, index === children.length - 1);
+      });
       out.push(close);
     };
 
@@ -527,28 +526,52 @@ function exportToMarkdownV2(root) {
         return;
       case 'SPAN':
         if (el.classList.contains('spoiler')) return openClose('||', '||');
-        for (const child of el.childNodes) walk(child);
+        const children = Array.from(el.childNodes);
+        children.forEach((child, index) => {
+          walk(child, index === children.length - 1);
+        });
         return;
       case 'A':
         const href = el.getAttribute('href') || '#';
         out.push('[');
-        for (const child of el.childNodes) walk(child);
+        const linkChildren = Array.from(el.childNodes);
+        linkChildren.forEach((child, index) => {
+          walk(child, index === linkChildren.length - 1);
+        });
         out.push(`](${mdEscape(href)})`);
         return;
       case 'DIV':
       case 'P':
-        for (const child of el.childNodes) walk(child);
-        out.push('\n');
+        const divChildren = Array.from(el.childNodes);
+        divChildren.forEach((child, index) => {
+          walk(child, index === divChildren.length - 1);
+        });
+        // Only add newline if this div/p has actual content
+        if (el.textContent.length > 0) {
+          out.push('\n');
+        }
         return;
       case 'BR':
         out.push('\n');
         return;
       default:
-        for (const child of el.childNodes) walk(child);
+        const defaultChildren = Array.from(el.childNodes);
+        defaultChildren.forEach((child, index) => {
+          walk(child, index === defaultChildren.length - 1);
+        });
     }
   }
-  for (const child of root.childNodes) walk(child);
-  return out.join('');
+  
+  // Process all children of root
+  const rootChildren = Array.from(root.childNodes);
+  rootChildren.forEach((child, index) => {
+    walk(child, index === rootChildren.length - 1);
+  });
+  
+  // Clean up the result - remove trailing newlines but preserve internal structure  
+  let result = out.join('');
+  result = result.replace(/\n+$/, '');
+  return result;
 }
 
 // Export to Calculator format
@@ -791,6 +814,34 @@ function initializePasteButton() {
 }
 
 // Popup formatting menu functions
+// Handle key presses to ensure proper line breaks
+function handleKeyDown(e) {
+  // Handle Enter key specifically
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    
+    // Insert a line break that preserves formatting context
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      
+      // Create a line break
+      const br = document.createElement('br');
+      range.deleteContents();
+      range.insertNode(br);
+      
+      // Move cursor after the br
+      range.setStartAfter(br);
+      range.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(range);
+      
+      // Trigger input event to ensure proper state
+      editor.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  }
+}
+
 function showPopupMenu(x, y) {
   popupMenu.style.left = x + 'px';
   popupMenu.style.top = y + 'px';
@@ -908,6 +959,9 @@ function initializeEventListeners() {
   });
 
   editor.addEventListener('paste', sanitizeOnPaste);
+
+  // Handle Enter key to ensure proper line breaks
+  editor.addEventListener('keydown', handleKeyDown);
 
   // Text selection events for popup menu
   document.addEventListener('selectionchange', handleTextSelection);
